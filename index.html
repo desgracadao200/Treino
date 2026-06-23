@@ -5,21 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Meu Treino — Powerlifting</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{-webkit-font-smoothing:antialiased;}
-body{background:#0c0c0e;color:#f2f0ea;font-family:'Oswald',sans-serif;min-height:100vh;}
-#root{max-width:520px;margin:0 auto;padding:0 13px 70px;}
+html,body{background:#0c0c0e;color:#f2f0ea;font-family:'Oswald',sans-serif;min-height:100vh;}
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;}
+#loading .spin{width:40px;height:40px;border:3px solid #2e2e38;border-top-color:#e8a534;border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{font-size:14px;color:#8c8a85;letter-spacing:2px;text-transform:uppercase;}
+#error{display:none;padding:24px;background:#1a1a20;border:1px solid #d6493b;border-radius:12px;margin:20px;color:#f2f0ea;font-size:13px;line-height:1.6;}
 button{font-family:'Oswald',sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer;border:none;outline:none;}
 input{font-family:'JetBrains Mono',monospace;touch-action:manipulation;outline:none;border:none;}
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
+
+<!-- Mostrado enquanto o Babel/React carrega -->
+<div id="loading">
+  <div class="spin"></div>
+  <p>Carregando treino...</p>
+</div>
+
+<!-- Mostrado se der erro -->
+<div id="error"></div>
+
+<!-- Container do app -->
+<div id="root" style="display:none"></div>
+
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  document.getElementById('loading').style.display = 'none';
+  var el = document.getElementById('error');
+  el.style.display = 'block';
+  el.innerHTML = '<b style="color:#d6493b">Erro ao carregar o app:</b><br><br>' + msg + '<br><small style="color:#8c8a85">Linha ' + line + '</small>';
+};
+</script>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
 const { useState, useEffect } = React;
 
 const PROG = {
@@ -36,7 +61,7 @@ const PROG = {
   }
 };
 
-const WU={
+const WU = {
   ter:[{lift:"squat",title:"Agachamento",steps:[{lb:"Barra",kg:20,reps:"8"},{pct:40,reps:"5"},{pct:55,reps:"3"},{pct:70,reps:"2"},{pct:85,reps:"1"}]}],
   qui:[{lift:"bench",title:"Supino",steps:[{lb:"Barra",kg:20,reps:"10"},{pct:40,reps:"8"},{pct:60,reps:"5"},{pct:70,reps:"2"}]}],
   sex:[{lift:"squat",title:"Agach. Pausa",note:"pausa 2s",steps:[{lb:"Barra",kg:20,reps:"8"},{pct:40,reps:"5"},{pct:55,reps:"3"},{pct:68,reps:"2"}]}],
@@ -46,7 +71,7 @@ const WU={
   ]
 };
 
-const DAYS={
+const DAYS = {
   ter:{lb:"Terça",title:"Heavy Lower",sub:"Agachamento pesado + posterior",cls:"heavy",ex:[
     {id:"t1",name:"Agachamento (pesado)",main:{lift:"squat",dt:"heavy"},subs:["Hack squat","High bar","Smith"]},
     {id:"t2",name:"Agachamento pausa (2s)",sets:3,reps:3,rpe:"7",subs:["Box squat","Frontal","Smith pausa"]},
@@ -95,473 +120,599 @@ const METAS={
   dead:{atual:195,recomp:207.5,cheia:217.5,blocos:[199,202,205,207.5]}
 };
 
-const C={bg:"#0c0c0e",bg2:"#141418",card:"#1a1a20",card2:"#22222a",line:"#2e2e38",gold:"#e8a534",goldD:"#a8761f",red:"#d6493b",blue:"#4d83c4",green:"#5aa55f",purple:"#7c5cbf",txt:"#f2f0ea",dim:"#8c8a85",faint:"#5a5852"};
-const mono="'JetBrains Mono',monospace";
-const ui="'Oswald',sans-serif";
+const G="#e8a534",GD="#a8761f",R="#d6493b",BL="#4d83c4",GR="#5aa55f",PU="#7c5cbf";
+const BG="#0c0c0e",BG2="#141418",CARD="#1a1a20",CARD2="#22222a",LN="#2e2e38";
+const TX="#f2f0ea",DIM="#8c8a85",FT="#5a5852";
+const MN="'JetBrains Mono',monospace";
 
 function r25(x){return Math.round(x/2.5)*2.5;}
-function B(extra){return{fontFamily:ui,touchAction:"manipulation",WebkitTapHighlightColor:"transparent",cursor:"pointer",border:"none",outline:"none",...extra};}
+function B(ex){return{fontFamily:"'Oswald',sans-serif",touchAction:"manipulation",WebkitTapHighlightColor:"transparent",cursor:"pointer",border:"none",outline:"none",...ex};}
+function lsGet(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 
-function ls(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
-function lss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function Lbl({c}){
+  return(
+    <div style={{fontSize:10,letterSpacing:3,textTransform:"uppercase",color:DIM,fontWeight:500,marginBottom:8,display:"flex",alignItems:"center",gap:7}}>
+      <span style={{width:14,height:2,background:G,flexShrink:0,display:"block"}}/>
+      <span>{c}</span>
+    </div>
+  );
+}
+
+function WuStep({s, rmv}){
+  var kg = s.kg !== undefined ? s.kg : (rmv > 0 ? r25(rmv * s.pct / 100) : null);
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:9,padding:"7px 9px",background:CARD,borderRadius:7,marginBottom:4,border:"1px solid "+LN}}>
+      <span style={{fontFamily:MN,fontSize:10,color:FT,minWidth:18}}>ª</span>
+      <span style={{fontFamily:MN,fontWeight:800,fontSize:18,color:G,minWidth:55}}>{kg !== null ? kg+"kg" : "—"}</span>
+      <span style={{fontFamily:MN,fontWeight:700,fontSize:12,color:TX}}>× {s.reps}</span>
+      <span style={{fontSize:10,color:FT,marginLeft:"auto"}}>{s.lb || s.pct+"%"}</span>
+    </div>
+  );
+}
 
 function App(){
-  const[rm,setRm]=useState(()=>ls("pl7_rm")||{sq:"102.5",bn:"85",dl:"195"});
-  const[mode,setMode]=useState("treino");
-  const[day,setDay]=useState("ter");
-  const[phase,setPhase]=useState("acum");
-  const[subs,setSubs]=useState(()=>ls("pl7_sb")||{});
-  const[openS,setOpenS]=useState({});
-  const[wuOpen,setWuOpen]=useState(false);
-  const[log,setLog]=useState({});
-  const[date,setDate]=useState(new Date().toISOString().slice(0,10));
-  const[hist,setHist]=useState(()=>ls("pl7_ss")||[]);
-  const[saveS,setSaveS]=useState("idle");
-  const[rmLift,setRmLift]=useState("squat");
-  const[rmDate,setRmDate]=useState(new Date().toISOString().slice(0,10));
-  const[rmWuOpen,setRmWuOpen]=useState(false);
-  const[attempts,setAttempts]=useState([{kg:"",ok:null},{kg:"",ok:null},{kg:"",ok:null}]);
-  const[rmHist,setRmHist]=useState(()=>ls("pl7_rh")||[]);
-  const[rmSaveS,setRmSaveS]=useState("idle");
-  const[rmUpdated,setRmUpdated]=useState(null);
+  var savedRm = lsGet("pl8_rm");
+  var savedSubs = lsGet("pl8_sb");
+  var savedHist = lsGet("pl8_ss");
+  var savedRmHist = lsGet("pl8_rh");
 
-  function getRmVal(lift){const v=parseFloat(rm[RM_K[lift]]);return isNaN(v)?0:v;}
+  var [rm, setRm] = useState(savedRm || {sq:"102.5",bn:"85",dl:"195"});
+  var [mode, setMode] = useState("treino");
+  var [day, setDay] = useState("ter");
+  var [phase, setPhase] = useState("acum");
+  var [subs, setSubs] = useState(savedSubs || {});
+  var [openS, setOpenS] = useState({});
+  var [wuOpen, setWuOpen] = useState(false);
+  var [log, setLog] = useState({});
+  var [date, setDate] = useState(new Date().toISOString().slice(0,10));
+  var [hist, setHist] = useState(savedHist || []);
+  var [saveS, setSaveS] = useState("idle");
+  var [rmLift, setRmLift] = useState("squat");
+  var [rmDate, setRmDate] = useState(new Date().toISOString().slice(0,10));
+  var [rmWuOpen, setRmWuOpen] = useState(false);
+  var [attempts, setAttempts] = useState([{kg:"",ok:null},{kg:"",ok:null},{kg:"",ok:null}]);
+  var [rmHist, setRmHist] = useState(savedRmHist || []);
+  var [rmSaveS, setRmSaveS] = useState("idle");
+  var [rmUpdated, setRmUpdated] = useState(null);
+
+  function getRmV(lift){var v=parseFloat(rm[RM_K[lift]]);return isNaN(v)?0:v;}
+
   function comp(lift,dt){
-    const rmv=getRmVal(lift);
-    const cfg=dt==="heavy"?PROG[lift]?.heavy?.[phase]:PROG[lift]?.volume;
-    if(!cfg)return null;
-    return{...cfg,kg:rmv>0?r25(rmv*cfg.pct/100):null,exact:rmv>0?(rmv*cfg.pct/100).toFixed(1):null,fixed:dt==="volume"};
+    var rmv=getRmV(lift);
+    var heavy=PROG[lift] && PROG[lift].heavy;
+    var vol=PROG[lift] && PROG[lift].volume;
+    var cfg=dt==="heavy"?(heavy && heavy[phase]):vol;
+    if(!cfg) return null;
+    return Object.assign({},cfg,{
+      kg:rmv>0?r25(rmv*cfg.pct/100):null,
+      exact:rmv>0?(rmv*cfg.pct/100).toFixed(1):null,
+      fixed:dt==="volume"
+    });
   }
-  function numSets(e){if(e.main){const m=comp(e.main.lift,e.main.dt);return m?m.sets:3;}return e.sets||3;}
-  function tReps(e){if(e.main){const m=comp(e.main.lift,e.main.dt);return m?m.reps:"-";}return e.reps||"-";}
-  function getSet(exId,si){const d=log[exId];return d?.sets?.[si]||{kg:"",reps:""};}
-  function getRpeVal(exId){return log[exId]?.rpe||"";}
+
+  function numSets(e){
+    if(e.main){var m=comp(e.main.lift,e.main.dt);return m?m.sets:3;}
+    return e.sets||3;
+  }
+  function tReps(e){
+    if(e.main){var m=comp(e.main.lift,e.main.dt);return m?m.reps:"-";}
+    return e.reps||"-";
+  }
+  function getSet(exId,si){var d=log[exId];return(d&&d.sets&&d.sets[si])||{kg:"",reps:""};}
+  function getRpeV(exId){return(log[exId]&&log[exId].rpe)||"";}
+
   function setSetVal(exId,si,field,val){
-    setLog(p=>{const d={...p[exId]||{sets:[],rpe:""}};const sets=[...d.sets||[]];
-      while(sets.length<=si)sets.push({kg:"",reps:""});
-      sets[si]={...sets[si],[field]:val};return{...p,[exId]:{...d,sets}};});
+    setLog(function(p){
+      var d=Object.assign({},p[exId]||{sets:[],rpe:""});
+      var sets=d.sets?d.sets.slice():[];
+      while(sets.length<=si) sets.push({kg:"",reps:""});
+      sets[si]=Object.assign({},sets[si]);
+      sets[si][field]=val;
+      d.sets=sets;
+      var next=Object.assign({},p);
+      next[exId]=d;
+      return next;
+    });
   }
-  function setRpeVal2(exId,val){setLog(p=>({...p,[exId]:{...p[exId]||{sets:[],rpe:""},rpe:val}}));}
+  function setRpeV(exId,val){
+    setLog(function(p){
+      var next=Object.assign({},p);
+      next[exId]=Object.assign({},p[exId]||{sets:[],rpe:""},{rpe:val});
+      return next;
+    });
+  }
 
-  function saveRM(v){lss("pl7_rm",v);}
-  function saveSB(v){lss("pl7_sb",v);}
-  function saveSS(v){lss("pl7_ss",v);}
-  function saveRH(v){lss("pl7_rh",v);}
-
+  function updRM(k,val){var n=Object.assign({},rm);n[k]=val;setRm(n);lsSet("pl8_rm",n);}
   function chDay(d){setDay(d);setOpenS({});setWuOpen(false);setLog({});}
-  function togSub(id){setOpenS(p=>({...p,[id]:!p[id]}));}
-  function chSub(id,name){const n={...subs,[id]:name};setSubs(n);saveSB(n);setOpenS(p=>({...p,[id]:false}));}
+  function togSub(id){setOpenS(function(p){var n=Object.assign({},p);n[id]=!p[id];return n;});}
+  function chSub(id,name){var n=Object.assign({},subs);n[id]=name;setSubs(n);lsSet("pl8_sb",n);setOpenS(function(p){var q=Object.assign({},p);q[id]=false;return q;});}
 
   function doSave(){
-    const d=DAYS[day];
+    var d=DAYS[day];
     if(d.recovery){flash(setSaveS,"rec");return;}
     if(!date){flash(setSaveS,"err");return;}
-    const entries=(d.ex||[]).map(e=>{
-      const ns=numSets(e),ld=log[e.id]||{sets:[],rpe:""};
-      return{name:subs[e.id]||e.name,sets:Array.from({length:ns},(_,i)=>ld.sets?.[i]||{kg:"",reps:""}),rpe:ld.rpe||""};
+    var entries=(d.ex||[]).map(function(e){
+      var ns=numSets(e);
+      var ld=log[e.id]||{sets:[],rpe:""};
+      var sets=[];
+      for(var i=0;i<ns;i++) sets.push((ld.sets&&ld.sets[i])||{kg:"",reps:""});
+      return{name:subs[e.id]||e.name,sets:sets,rpe:ld.rpe||""};
     });
-    const next=[...hist,{ts:Date.now(),date,day,phase,entries}];
-    setHist(next);saveSS(next);setLog({});flash(setSaveS,"done");
+    var next=hist.concat([{ts:Date.now(),date:date,day:day,phase:phase,entries:entries}]);
+    setHist(next);lsSet("pl8_ss",next);setLog({});flash(setSaveS,"done");
   }
 
   function doRmSave(){
     if(!rmDate){flash(setRmSaveS,"err");return;}
-    const bestOk=attempts.reduce((best,a)=>{
-      if(a.ok===true&&parseFloat(a.kg)>0){const v=parseFloat(a.kg);return v>best?v:best;}
-      return best;
-    },0);
-    const entry={ts:Date.now(),date:rmDate,lift:rmLift,attempts:[...attempts],bestKg:bestOk||null};
-    const next=[...rmHist,entry];
-    setRmHist(next);saveRH(next);
+    var bestOk=0;
+    attempts.forEach(function(a){
+      if(a.ok===true && parseFloat(a.kg)>0){var v=parseFloat(a.kg);if(v>bestOk)bestOk=v;}
+    });
+    var entry={ts:Date.now(),date:rmDate,lift:rmLift,attempts:attempts.slice(),bestKg:bestOk||null};
+    var next=rmHist.concat([entry]);
+    setRmHist(next);lsSet("pl8_rh",next);
     if(bestOk>0){
-      const key=RM_K[rmLift];
-      const newRm={...rm,[key]:String(bestOk)};
-      setRm(newRm);saveRM(newRm);
-      setRmUpdated(bestOk);
+      var key=RM_K[rmLift];
+      var newRm=Object.assign({},rm);newRm[key]=String(bestOk);
+      setRm(newRm);lsSet("pl8_rm",newRm);setRmUpdated(bestOk);
     }
     flash(setRmSaveS,"done");
   }
 
-  function flash(setter,t){setter(t);setTimeout(()=>setter("idle"),2000);}
-  function delHist(ts){const n=hist.filter(s=>s.ts!==ts);setHist(n);saveSS(n);}
-  function delRmHist(ts){const n=rmHist.filter(s=>s.ts!==ts);setRmHist(n);saveRH(n);}
-  function setAttempt(i,field,val){setAttempts(p=>{const n=[...p];n[i]={...n[i],[field]:val};return n;});}
-  function toggleOk(i,val){setAttempts(p=>{const n=[...p];n[i]={...n[i],ok:n[i].ok===val?null:val};return n;});}
+  function flash(setter,t){setter(t);setTimeout(function(){setter("idle");},2000);}
+  function delHist(ts){var n=hist.filter(function(s){return s.ts!==ts;});setHist(n);lsSet("pl8_ss",n);}
+  function delRmHist(ts){var n=rmHist.filter(function(s){return s.ts!==ts;});setRmHist(n);lsSet("pl8_rh",n);}
+  function setAtt(i,f,v){setAttempts(function(p){var n=p.slice();n[i]=Object.assign({},n[i]);n[i][f]=v;return n;});}
+  function togOk(i,v){setAttempts(function(p){var n=p.slice();n[i]=Object.assign({},n[i]);n[i].ok=n[i].ok===v?null:v;return n;});}
 
-  const d=DAYS[day];
-  const hasH=!d.recovery&&d.ex.some(e=>e.main?.dt==="heavy");
-  const wubs=WU[day]||[];
-  const rmv=getRmVal(rmLift);
-  const suggestions=[rmv>0?r25(rmv*0.90):null,rmv>0?r25(rmv*0.95):null,rmv>0?r25(rmv*1.00)+2.5:null];
-  const rmWuSteps=[{lb:"Barra",kg:20,reps:"10"},{pct:50,reps:"5"},{pct:65,reps:"3"},{pct:75,reps:"2"},{pct:85,reps:"1"},{pct:92,reps:"1"}];
-
-  const saveLbl=saveS==="done"?"✓ Salvo!":saveS==="err"?"Preencha a data!":saveS==="rec"?"Dia de recuperação":"Salvar Treino";
-  const saveBg=saveS==="done"?C.green:saveS!=="idle"?C.red:C.gold;
-  const rmSaveLbl=rmSaveS==="done"?"✓ Resultado Salvo!":rmSaveS==="err"?"Preencha a data!":"Salvar Resultado";
-  const rmSaveBg=rmSaveS==="done"?C.green:rmSaveS!=="idle"?C.red:C.purple;
-  const bannerBL={heavy:C.red,volume:C.blue,rec:C.green}[d.cls]||C.gold;
-
-  const Lbl=({c})=>(
-    <div style={{fontSize:10,letterSpacing:3,textTransform:"uppercase",color:C.dim,fontWeight:500,marginBottom:8,display:"flex",alignItems:"center",gap:7,fontFamily:ui}}>
-      <span style={{width:14,height:2,background:C.gold,flexShrink:0,display:"block"}}/>
-      <span>{c}</span>
-    </div>
-  );
-
-  const WuBlock=({blocks})=>(
-    <div style={{background:C.bg2,border:`1px solid ${C.line}`,borderRadius:11,marginBottom:10,overflow:"hidden"}}>
-      <div onClick={()=>setWuOpen(p=>!p)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:13,minHeight:48,cursor:"pointer",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
-        <span style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:C.gold,fontWeight:500}}>🔥 Aquecimento</span>
-        <span style={{color:C.dim,fontSize:12,transition:"transform .2s",transform:wuOpen?"rotate(180deg)":"none",display:"inline-block"}}>▼</span>
-      </div>
-      {wuOpen&&(
-        <div style={{padding:"0 13px 12px"}}>
-          {blocks.map((blk,bi)=>{
-            const rv=getRmVal(blk.lift);
-            return(<div key={bi}>
-              <div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:".8px",margin:"9px 0 5px",fontWeight:500}}>
-                {blk.title}{blk.note&&<span style={{color:C.faint,fontSize:9,marginLeft:5,textTransform:"none",letterSpacing:0}}>({blk.note})</span>}
-              </div>
-              {blk.steps.map((s,si)=>{
-                const kg=s.kg!==undefined?s.kg:(rv>0?r25(rv*s.pct/100):null);
-                return(<div key={si} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 9px",background:C.card,borderRadius:7,marginBottom:4,border:`1px solid ${C.line}`}}>
-                  <span style={{fontFamily:mono,fontSize:10,color:C.faint,minWidth:18}}>{si+1}ª</span>
-                  <span style={{fontFamily:mono,fontWeight:800,fontSize:18,color:C.gold,minWidth:55}}>{kg!==null?kg+"kg":"—"}</span>
-                  <span style={{fontFamily:mono,fontWeight:700,fontSize:12,color:C.txt}}>× {s.reps}</span>
-                  <span style={{fontSize:10,color:C.faint,marginLeft:"auto"}}>{s.lb||s.pct+"%"}</span>
-                </div>);
-              })}
-            </div>);
-          })}
-          <div style={{fontSize:10,color:C.faint,marginTop:5,lineHeight:1.4}}>Arredonde 1–2kg conforme as anilhas.</div>
-        </div>
-      )}
-    </div>
-  );
-
-  const ExCard=({e})=>{
-    const nm=subs[e.id]||e.name,isM=!!e.main,md=isM?comp(e.main.lift,e.main.dt):null;
-    const so=!!openS[e.id],cs=subs[e.id]||e.name,ns=numSets(e),tr=tReps(e);
-    return(
-      <div style={{background:isM?`linear-gradient(145deg,${C.card2},${C.card})`:C.card,border:`1px solid ${isM?C.goldD:C.line}`,borderRadius:11,padding:"12px 13px",marginBottom:9}}>
-        <div style={{fontSize:15,fontWeight:600,lineHeight:1.2,marginBottom:3}}>{nm}</div>
-        <span style={{fontSize:9,fontWeight:600,letterSpacing:".8px",textTransform:"uppercase",padding:"2px 6px",borderRadius:4,display:"inline-block",background:isM?"rgba(232,165,52,.15)":"rgba(140,138,133,.15)",color:isM?C.gold:C.dim}}>{isM?"Principal":"Acessório"}</span>
-        {isM&&md?(
-          <>
-            <div style={{display:"flex",gap:12,marginTop:8,flexWrap:"wrap",alignItems:"baseline"}}>
-              {md.kg!==null&&<span><span style={{fontFamily:mono,fontWeight:800,fontSize:26,color:C.gold,lineHeight:1}}>{md.kg}</span><span style={{fontSize:12,color:C.dim}}> kg</span></span>}
-              <span style={{fontFamily:mono,fontWeight:700,fontSize:17,color:C.txt}}>{md.sets}×{md.reps}</span>
-              <span style={{fontSize:12,color:C.dim}}>RPE {md.rpe}</span>
-            </div>
-            <div style={{fontFamily:mono,fontSize:10,color:C.faint,marginTop:2}}>{md.kg!==null?`${md.pct}% do 1RM · exato ${md.exact}kg`:"Preencha o 1RM acima"}</div>
-            {md.fixed&&<div style={{fontSize:11,color:C.gold,marginTop:3}}>Volume — carga fixa, dupla progressão</div>}
-          </>
-        ):!isM&&(
-          <div style={{display:"flex",gap:12,marginTop:8,alignItems:"baseline"}}>
-            <span style={{fontFamily:mono,fontWeight:700,fontSize:17,color:C.txt}}>{e.sets}×{e.reps}</span>
-            <span style={{fontSize:12,color:C.dim}}>RPE {e.rpe}</span>
-          </div>
-        )}
-        {e.subs?.length>0&&(
-          <>
-            <button onClick={()=>togSub(e.id)} style={B({marginTop:9,fontSize:11,color:C.blue,border:`1px dashed ${C.line}`,padding:"8px 10px",borderRadius:7,display:"inline-flex",alignItems:"center",gap:4,background:"transparent",minHeight:40})}>🔄 Trocar (sem máquina?)</button>
-            {so&&(<div style={{marginTop:7,display:"flex",flexWrap:"wrap",gap:5}}>
-              {[e.name,...e.subs].map(sn=>(
-                <button key={sn} onClick={()=>chSub(e.id,sn)} style={B({background:cs===sn?"rgba(77,131,196,.12)":C.bg2,border:`1px solid ${cs===sn?C.blue:C.line}`,color:cs===sn?C.blue:C.dim,fontSize:11,padding:"8px 10px",borderRadius:7,minHeight:38})}>{sn}</button>
-              ))}
-            </div>)}
-          </>
-        )}
-        <div style={{marginTop:11,paddingTop:11,borderTop:`1px solid ${C.line}`}}>
-          <div style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr",gap:6,marginBottom:5}}>
-            {["Série","Carga (kg)","Reps feitas"].map(h=><span key={h} style={{fontSize:9,letterSpacing:.5,textTransform:"uppercase",color:C.faint,textAlign:"center",fontFamily:ui}}>{h}</span>)}
-          </div>
-          {Array.from({length:ns},(_,si)=>{
-            const s=getSet(e.id,si);
-            return(<div key={si} style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr",gap:6,marginBottom:5,alignItems:"center"}}>
-              <div style={{fontFamily:mono,fontSize:12,fontWeight:700,color:C.dim,textAlign:"center",background:C.bg2,border:`1px solid ${C.line}`,borderRadius:6,height:40,display:"flex",alignItems:"center",justifyContent:"center"}}>{si+1}</div>
-              <div style={{background:C.bg2,border:`1px solid ${C.line}`,borderRadius:7,height:40,display:"flex",alignItems:"center",padding:"0 8px"}}>
-                <input type="number" inputMode="decimal" placeholder="kg" value={s.kg} onChange={ev=>setSetVal(e.id,si,"kg",ev.target.value)} style={{width:"100%",background:"transparent",color:C.gold,fontFamily:mono,fontWeight:700,fontSize:15,textAlign:"center",touchAction:"manipulation"}}/>
-              </div>
-              <div style={{background:C.bg2,border:`1px solid ${C.line}`,borderRadius:7,height:40,display:"flex",alignItems:"center",padding:"0 8px"}}>
-                <input type="number" inputMode="decimal" placeholder={String(tr)} value={s.reps} onChange={ev=>setSetVal(e.id,si,"reps",ev.target.value)} style={{width:"100%",background:"transparent",color:C.txt,fontFamily:mono,fontWeight:700,fontSize:15,textAlign:"center",touchAction:"manipulation"}}/>
-              </div>
-            </div>);
-          })}
-          <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,paddingTop:6,borderTop:`1px dashed ${C.line}`}}>
-            <span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:C.faint,fontFamily:ui,whiteSpace:"nowrap"}}>RPE geral</span>
-            <div style={{flex:1,background:C.bg2,border:`1px solid ${C.line}`,borderRadius:7,height:36,display:"flex",alignItems:"center",padding:"0 8px"}}>
-              <input type="number" inputMode="decimal" placeholder="—" value={getRpeVal(e.id)} onChange={ev=>setRpeVal2(e.id,ev.target.value)} style={{width:"100%",background:"transparent",color:C.gold,fontFamily:mono,fontWeight:700,fontSize:14,textAlign:"center",touchAction:"manipulation"}}/>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  var d=DAYS[day];
+  var hasH=!d.recovery&&d.ex.some(function(e){return e.main&&e.main.dt==="heavy";});
+  var wubs=WU[day]||[];
+  var rmv=getRmV(rmLift);
+  var sugg=[rmv>0?r25(rmv*0.90):null,rmv>0?r25(rmv*0.95):null,rmv>0?r25(rmv)+2.5:null];
+  var rmWuS=[{lb:"Barra",kg:20,reps:"10"},{pct:50,reps:"5"},{pct:65,reps:"3"},{pct:75,reps:"2"},{pct:85,reps:"1"},{pct:92,reps:"1"}];
+  var bannerBL=d.cls==="heavy"?R:d.cls==="volume"?BL:GR;
+  var saveLbl=saveS==="done"?"✓ Salvo!":saveS==="err"?"Preencha a data!":saveS==="rec"?"Dia de recuperação":"Salvar Treino";
+  var saveBg=saveS==="done"?GR:saveS!=="idle"?R:G;
+  var rmSaveLbl=rmSaveS==="done"?"✓ Resultado Salvo!":rmSaveS==="err"?"Preencha a data!":"Salvar Resultado";
+  var rmSaveBg=rmSaveS==="done"?GR:rmSaveS!=="idle"?R:PU;
 
   return(
-    <div style={{background:C.bg,minHeight:"100vh",fontFamily:ui,color:C.txt,paddingBottom:20,backgroundImage:`radial-gradient(circle at 50% 0%, #1c1c22 0%, ${C.bg} 55%)`}}>
+    <div style={{background:BG,minHeight:"100vh",fontFamily:"'Oswald',sans-serif",color:TX,backgroundImage:"radial-gradient(circle at 50% 0%, #1c1c22 0%, #0c0c0e 55%)"}}>
       <div style={{maxWidth:520,margin:"0 auto",padding:"0 13px 70px"}}>
 
-      {/* HEADER */}
-      <div style={{padding:"20px 0 13px",textAlign:"center",borderBottom:`2px solid ${C.line}`,marginBottom:16}}>
-        <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:C.gold,fontWeight:500}}>Powerlifting · Programa Moderno</div>
-        <div style={{fontSize:27,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Meu <span style={{color:C.gold}}>Treino</span></div>
-      </div>
+        {/* HEADER */}
+        <div style={{padding:"20px 0 13px",textAlign:"center",borderBottom:"2px solid "+LN,marginBottom:16}}>
+          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:G,fontWeight:500}}>Powerlifting · Programa Moderno</div>
+          <div style={{fontSize:27,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Meu <span style={{color:G}}>Treino</span></div>
+        </div>
 
-      {/* MODO */}
-      <div style={{display:"flex",gap:4,background:C.bg2,border:`1px solid ${C.line}`,borderRadius:11,padding:4,marginBottom:16}}>
-        {[["treino","📋 Treino"],["rm","🏆 Teste 1RM"],["metas","🎯 Metas"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setMode(k)} style={B({flex:1,background:mode===k?(k==="rm"?C.purple:k==="metas"?C.green:C.gold):"transparent",color:mode===k?"#fff":C.dim,fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:".3px",padding:"13px 3px",borderRadius:8,minHeight:46})}>{l}</button>
-        ))}
-      </div>
+        {/* MODO TABS */}
+        <div style={{display:"flex",gap:4,background:BG2,border:"1px solid "+LN,borderRadius:11,padding:4,marginBottom:16}}>
+          {[["treino","📋 Treino"],["rm","🏆 Teste 1RM"],["metas","🎯 Metas"]].map(function(item){
+            var k=item[0],l=item[1];
+            var bg=mode===k?(k==="rm"?PU:k==="metas"?GR:G):"transparent";
+            var col=mode===k?"#fff":DIM;
+            return(
+              <button key={k} onClick={function(){setMode(k);}} style={B({flex:1,background:bg,color:col,fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:".3px",padding:"13px 3px",borderRadius:8,minHeight:46})}>{l}</button>
+            );
+          })}
+        </div>
 
-      {/* 1RM */}
-      <div style={{marginBottom:16}}>
-        <Lbl c="Seu 1RM atual (kg)"/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
-          {[["sq","Squat"],["bn","Bench"],["dl","Deadlift"]].map(([k,l])=>(
-            <div key={k} style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:10,padding:"9px 6px",textAlign:"center"}}>
-              <label style={{display:"block",fontSize:10,letterSpacing:1,textTransform:"uppercase",color:C.dim,marginBottom:5,fontFamily:ui}}>{l}</label>
-              <input type="number" inputMode="decimal" placeholder="0" value={rm[k]} onChange={e=>{const n={...rm,[k]:e.target.value};setRm(n);saveRM(n);}} style={{width:"100%",background:"transparent",color:C.gold,fontFamily:mono,fontWeight:800,fontSize:21,textAlign:"center",touchAction:"manipulation"}}/>
-            </div>
-          ))}
-        </div>
-        {rmUpdated&&<div style={{marginTop:8,background:"rgba(124,92,191,.15)",border:`1px solid ${C.purple}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:"#d1c4e9",textAlign:"center"}}>✅ 1RM de {LIFT_NAMES[rmLift]} atualizado para <b>{rmUpdated}kg</b>!</div>}
-      </div>
-
-      {/* ═══ TREINO ═══ */}
-      {mode==="treino"&&(<>
-        <div style={{marginBottom:15}}>
-          <Lbl c="Dia da Semana"/>
-          <div style={{display:"flex",gap:4,background:C.bg2,border:`1px solid ${C.line}`,borderRadius:11,padding:4}}>
-            {DAY_K.map(k=>(
-              <button key={k} onClick={()=>chDay(k)} style={B({flex:1,background:day===k?C.gold:"transparent",color:day===k?"#1a1208":C.dim,fontSize:13,fontWeight:600,textTransform:"uppercase",letterSpacing:".8px",padding:"13px 2px",borderRadius:8,minHeight:46})}>{DAYS[k].lb}</button>
-            ))}
-          </div>
-        </div>
-        {hasH&&(<div style={{marginBottom:15}}>
-          <Lbl c="Fase do Bloco"/>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:5}}>
-            {PH_K.map(k=>(
-              <button key={k} onClick={()=>setPhase(k)} style={B({background:phase===k?C.card2:C.card,border:`1px solid ${phase===k?C.gold:C.line}`,borderRadius:9,color:phase===k?C.txt:C.dim,fontSize:11,fontWeight:500,textTransform:"uppercase",padding:"11px 3px",minHeight:50,display:"flex",flexDirection:"column",gap:2,alignItems:"center"})}>
-                <span>{PH_LBL[k]}</span><span style={{fontSize:9,color:phase===k?C.gold:C.faint}}>{PH_WK[k]}</span>
-              </button>
-            ))}
-          </div>
-        </div>)}
-        <div style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:9,padding:"9px 13px",marginBottom:9,display:"flex",alignItems:"center",gap:9}}>
-          <label style={{fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.dim,fontFamily:ui}}>📅 Data</label>
-          <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{flex:1,background:"transparent",color:C.gold,fontFamily:mono,fontWeight:700,fontSize:15,touchAction:"manipulation"}}/>
-        </div>
-        <div style={{borderRadius:9,padding:"11px 13px",marginBottom:10,border:`1px solid ${C.line}`,borderLeft:`4px solid ${bannerBL}`,background:C.card2}}>
-          <div style={{fontSize:16,fontWeight:600,textTransform:"uppercase",letterSpacing:".8px"}}>{d.lb} — {d.title}</div>
-          <div style={{fontSize:12,color:C.dim,fontWeight:300,marginTop:2}}>{d.sub}</div>
-        </div>
-        {wubs.length>0&&<WuBlock blocks={wubs}/>}
-        {d.recovery?d.ex.map((e,i)=>(
-          <div key={i} style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:9,padding:"12px 13px",marginBottom:7}}>
-            <div style={{fontSize:14,fontWeight:500}}>{e.rt}</div>
-            <div style={{fontSize:11,color:C.dim,fontWeight:300,marginTop:2}}>{e.rs}</div>
-          </div>
-        )):d.ex.map(e=><ExCard key={e.id} e={e}/>)}
-        {!d.recovery&&<button onClick={doSave} style={B({width:"100%",marginTop:13,background:saveBg,color:saveS!=="idle"?"#fff":"#1a1208",borderRadius:11,fontSize:16,fontWeight:600,textTransform:"uppercase",letterSpacing:2,padding:"15px",minHeight:52})}>{saveLbl}</button>}
-        <div style={{marginTop:26}}>
-          <Lbl c="Histórico de Treinos"/>
-          {hist.length===0?<div style={{textAlign:"center",color:C.faint,fontSize:13,padding:"18px 0"}}>Nenhum treino salvo ainda.</div>
-          :[...hist].sort((a,b)=>b.ts-a.ts).map(s=>{
-            const dt=s.date?s.date.split("-").reverse().join("/").slice(0,5):"—";
-            const dn=DAYS[s.day]?.lb||s.day;
-            const entries=(s.entries||[]).filter(e=>e.sets?.some(x=>x.kg||x.reps)||e.rpe);
-            return(<div key={s.ts} style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:9,padding:"10px 13px",marginBottom:7}}>
-              <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:7}}>
-                <span style={{fontFamily:mono,fontSize:13,color:C.gold,fontWeight:700}}>{dt}</span>
-                <span style={{fontSize:8,fontWeight:600,letterSpacing:".8px",textTransform:"uppercase",padding:"2px 6px",borderRadius:3,background:C.bg2,color:C.dim,fontFamily:ui}}>{dn}</span>
-                <button onClick={()=>delHist(s.ts)} style={B({marginLeft:"auto",background:"transparent",color:C.faint,fontSize:22,padding:"0 5px",minHeight:40,minWidth:40,display:"flex",alignItems:"center",justifyContent:"center"})}>×</button>
-              </div>
-              {entries.map((en,i)=>(
-                <div key={i} style={{marginBottom:7}}>
-                  <div style={{fontSize:12,fontWeight:600,color:C.txt,marginBottom:4,fontFamily:ui}}>{en.name}</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                    {(en.sets||[]).map((st,si)=>{const ok=!!(st.kg||st.reps);return(<span key={si} style={{fontFamily:mono,fontSize:11,background:C.bg2,border:`1px solid ${ok?C.goldD:C.line}`,borderRadius:5,padding:"3px 8px",color:ok?C.gold:C.dim}}>{si+1} {st.kg?st.kg+"kg":"—"}×{st.reps||"—"}</span>);})}
-                  </div>
-                  {en.rpe&&<div style={{fontSize:10,color:C.faint,marginTop:3,fontFamily:ui}}>RPE {en.rpe}</div>}
+        {/* 1RM */}
+        <div style={{marginBottom:16}}>
+          <Lbl c="Seu 1RM atual (kg)"/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+            {[["sq","Squat"],["bn","Bench"],["dl","Deadlift"]].map(function(item){
+              var k=item[0],l=item[1];
+              return(
+                <div key={k} style={{background:CARD,border:"1px solid "+LN,borderRadius:10,padding:"9px 6px",textAlign:"center"}}>
+                  <label style={{display:"block",fontSize:10,letterSpacing:1,textTransform:"uppercase",color:DIM,marginBottom:5}}>{l}</label>
+                  <input type="number" inputMode="decimal" placeholder="0" value={rm[k]} onChange={function(e){updRM(k,e.target.value);}} style={{width:"100%",background:"transparent",color:G,fontFamily:MN,fontWeight:800,fontSize:21,textAlign:"center"}}/>
                 </div>
-              ))}
-            </div>);
-          })}
-        </div>
-      </>)}
-
-      {/* ═══ TESTE 1RM ═══ */}
-      {mode==="rm"&&(<>
-        <div style={{background:"rgba(124,92,191,.1)",border:`1px solid ${C.purple}`,borderRadius:9,padding:"11px 13px",marginBottom:14}}>
-          <div style={{fontSize:13,fontWeight:600,color:"#d1c4e9",marginBottom:3}}>⚠️ Protocolo de Teste 1RM</div>
-          <div style={{fontSize:11,color:C.dim,lineHeight:1.5}}>Descanse 2–3 dias antes. Teste <b style={{color:C.txt}}>1 lift por dia</b> com pelo menos 1 dia de folga entre cada um.</div>
-        </div>
-        <div style={{marginBottom:14}}>
-          <Lbl c="Lift a testar"/>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-            {["squat","bench","dead"].map(l=>(
-              <button key={l} onClick={()=>{setRmLift(l);setAttempts([{kg:"",ok:null},{kg:"",ok:null},{kg:"",ok:null}]);setRmUpdated(null);}} style={B({background:rmLift===l?C.purple:C.card,border:`1px solid ${rmLift===l?C.purple:C.line}`,borderRadius:9,color:rmLift===l?"#fff":C.dim,fontSize:13,fontWeight:600,padding:"12px 4px",minHeight:46,textTransform:"uppercase"})}>
-                {l==="squat"?"🏋️ Squat":l==="bench"?"🤜 Bench":"⬆️ Dead"}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:9,padding:"9px 13px",marginBottom:12,display:"flex",alignItems:"center",gap:9}}>
-          <label style={{fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.dim,fontFamily:ui}}>📅 Data</label>
-          <input type="date" value={rmDate} onChange={e=>setRmDate(e.target.value)} style={{flex:1,background:"transparent",color:C.gold,fontFamily:mono,fontWeight:700,fontSize:15,touchAction:"manipulation"}}/>
-        </div>
-        <div style={{background:C.bg2,border:`1px solid ${C.line}`,borderRadius:11,marginBottom:14,overflow:"hidden"}}>
-          <div onClick={()=>setRmWuOpen(p=>!p)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:13,minHeight:48,cursor:"pointer",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
-            <span style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:C.gold,fontWeight:500}}>🔥 Aquecimento para Teste</span>
-            <span style={{color:C.dim,fontSize:12,transition:"transform .2s",transform:rmWuOpen?"rotate(180deg)":"none",display:"inline-block"}}>▼</span>
-          </div>
-          {rmWuOpen&&(<div style={{padding:"0 13px 12px"}}>
-            <div style={{fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:".8px",margin:"5px 0 8px",fontWeight:500}}>{LIFT_NAMES[rmLift]}</div>
-            {rmWuSteps.map((s,i)=>{
-              const rv=getRmVal(rmLift);
-              const kg=s.kg!==undefined?s.kg:(rv>0?r25(rv*s.pct/100):null);
-              return(<div key={i} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 9px",background:C.card,borderRadius:7,marginBottom:4,border:`1px solid ${C.line}`}}>
-                <span style={{fontFamily:mono,fontSize:10,color:C.faint,minWidth:18}}>{i+1}ª</span>
-                <span style={{fontFamily:mono,fontWeight:800,fontSize:18,color:C.gold,minWidth:55}}>{kg!==null?kg+"kg":"—"}</span>
-                <span style={{fontFamily:mono,fontWeight:700,fontSize:12,color:C.txt}}>× {s.reps}</span>
-                <span style={{fontSize:10,color:C.faint,marginLeft:"auto"}}>{s.lb||s.pct+"%"}</span>
-              </div>);
+              );
             })}
-            <div style={{marginTop:7,background:"rgba(232,165,52,.08)",border:`1px solid ${C.goldD}`,borderRadius:7,padding:"8px 10px",fontSize:11,color:C.dim,lineHeight:1.4}}>Descanse <b style={{color:C.txt}}>3–5 min</b> entre aquecimentos. Após o último, <b style={{color:C.txt}}>5 min</b> antes da 1ª tentativa.</div>
-          </div>)}
-        </div>
-        <div style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:11,padding:13,marginBottom:14}}>
-          <div style={{fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:"#d1c4e9",fontWeight:600,marginBottom:12}}>🏆 Tentativas — {LIFT_NAMES[rmLift]}</div>
-          <div style={{display:"grid",gridTemplateColumns:"50px 1fr 80px",gap:8,marginBottom:6}}>
-            {["","Carga (kg)","Resultado"].map((h,i)=><span key={i} style={{fontSize:9,letterSpacing:.5,textTransform:"uppercase",color:C.faint,textAlign:i===2?"center":"left",fontFamily:ui}}>{h}</span>)}
           </div>
-          {attempts.map((a,i)=>{
-            const sug=suggestions[i];
-            const labels=["1ª Abertura","2ª Tentativa","3ª (PR)"];
-            const bColors=[C.blue,C.gold,C.purple];
-            return(<div key={i} style={{display:"grid",gridTemplateColumns:"50px 1fr 80px",gap:8,marginBottom:8,alignItems:"center"}}>
-              <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                <span style={{fontFamily:mono,fontSize:11,fontWeight:700,color:bColors[i]}}>{labels[i]}</span>
-                {sug&&<span style={{fontFamily:mono,fontSize:9,color:C.faint}}>~{sug}kg</span>}
-              </div>
-              <div style={{background:C.bg2,border:`1px solid ${a.ok===true?C.green:a.ok===false?C.red:C.line}`,borderRadius:8,height:44,display:"flex",alignItems:"center",padding:"0 10px",transition:"border-color .15s"}}>
-                <input type="number" inputMode="decimal" placeholder={sug?String(sug):"kg"} value={a.kg} onChange={ev=>setAttempt(i,"kg",ev.target.value)} style={{width:"100%",background:"transparent",color:a.ok===true?C.green:a.ok===false?C.red:C.txt,fontFamily:mono,fontWeight:800,fontSize:18,textAlign:"center",touchAction:"manipulation"}}/>
-              </div>
-              <div style={{display:"flex",gap:5,justifyContent:"center"}}>
-                <button onClick={()=>toggleOk(i,true)} style={B({background:a.ok===true?"rgba(90,165,95,.25)":C.bg2,border:`1px solid ${a.ok===true?C.green:C.line}`,borderRadius:7,color:a.ok===true?C.green:C.dim,fontSize:16,minHeight:44,minWidth:36,display:"flex",alignItems:"center",justifyContent:"center"})}>✓</button>
-                <button onClick={()=>toggleOk(i,false)} style={B({background:a.ok===false?"rgba(214,73,59,.25)":C.bg2,border:`1px solid ${a.ok===false?C.red:C.line}`,borderRadius:7,color:a.ok===false?C.red:C.dim,fontSize:16,minHeight:44,minWidth:36,display:"flex",alignItems:"center",justifyContent:"center"})}>✗</button>
-              </div>
-            </div>);
-          })}
-          <div style={{marginTop:8,padding:"8px 10px",background:`rgba(124,92,191,.08)`,border:`1px dashed ${C.purple}`,borderRadius:7,fontSize:11,color:C.dim,lineHeight:1.4}}>Descanse <b style={{color:C.txt}}>4–5 min</b> entre tentativas. ✓ = subiu limpo · ✗ = falhou</div>
+          {rmUpdated && <div style={{marginTop:8,background:"rgba(124,92,191,.15)",border:"1px solid "+PU,borderRadius:8,padding:"8px 12px",fontSize:12,color:"#d1c4e9",textAlign:"center"}}>✅ 1RM de {LIFT_NAMES[rmLift]} atualizado para <b>{rmUpdated}kg</b>!</div>}
         </div>
-        <button onClick={doRmSave} style={B({width:"100%",background:rmSaveBg,color:"#fff",borderRadius:11,fontSize:15,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,padding:"15px",minHeight:52})}>{rmSaveLbl}</button>
-        <div style={{fontSize:10,color:C.faint,textAlign:"center",marginTop:5}}>1RM atualizado automaticamente com o melhor resultado ✓</div>
-        <div style={{marginTop:26}}>
-          <Lbl c="Histórico de Testes 1RM"/>
-          {rmHist.length===0?<div style={{textAlign:"center",color:C.faint,fontSize:13,padding:"18px 0"}}>Nenhum teste salvo ainda.</div>
-          :[...rmHist].sort((a,b)=>b.ts-a.ts).map(s=>{
-            const dt=s.date?s.date.split("-").reverse().join("/").slice(0,5):"—";
-            return(<div key={s.ts} style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:9,padding:"10px 13px",marginBottom:7}}>
-              <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:7}}>
-                <span style={{fontFamily:mono,fontSize:13,color:C.gold,fontWeight:700}}>{dt}</span>
-                <span style={{fontSize:9,fontWeight:600,letterSpacing:".8px",textTransform:"uppercase",padding:"2px 7px",borderRadius:3,background:"rgba(124,92,191,.2)",color:"#d1c4e9",fontFamily:ui}}>{LIFT_NAMES[s.lift]}</span>
-                {s.bestKg&&<span style={{fontFamily:mono,fontSize:13,fontWeight:800,color:C.green,marginLeft:"auto"}}>✓ {s.bestKg}kg</span>}
-                <button onClick={()=>delRmHist(s.ts)} style={B({background:"transparent",color:C.faint,fontSize:22,padding:"0 5px",minHeight:40,minWidth:32,display:"flex",alignItems:"center",justifyContent:"center"})}>×</button>
-              </div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {(s.attempts||[]).map((a,i)=>{if(!a.kg)return null;const ok=a.ok===true,fail=a.ok===false;return(<span key={i} style={{fontFamily:mono,fontSize:12,background:C.bg2,border:`1px solid ${ok?C.green:fail?C.red:C.line}`,borderRadius:5,padding:"4px 9px",color:ok?C.green:fail?C.red:C.dim}}>{i+1}ª {a.kg}kg {ok?"✓":fail?"✗":""}</span>);})}
-              </div>
-            </div>);
-          })}
-        </div>
-      </>)}
 
-      {/* ═══ METAS ═══ */}
-      {mode==="metas"&&(<>
-        <div style={{background:"rgba(90,165,95,.1)",border:`1px solid ${C.green}`,borderRadius:9,padding:"11px 13px",marginBottom:14}}>
-          <div style={{fontSize:13,fontWeight:600,color:"#a5d6a7",marginBottom:3}}>🎯 Meta de Recomposição — Dez 2026</div>
-          <div style={{fontSize:11,color:C.dim,lineHeight:1.5}}>Ganhar força + perder gordura mantendo 93kg. A barra mostra o progresso rumo à meta de recomp (Dez). Meta cheia = ~12 meses.</div>
-        </div>
-        {["squat","bench","dead"].map(lift=>{
-          const m=METAS[lift];
-          const atual=getRmVal(lift)||m.atual;
-          const prog=Math.max(0,Math.min(100,((atual-m.atual)/(m.recomp-m.atual))*100));
-          const cor=lift==="squat"?C.green:lift==="bench"?C.red:C.gold;
-          const corBg=lift==="squat"?"rgba(90,165,95,.15)":lift==="bench"?"rgba(214,73,59,.15)":"rgba(232,165,52,.15)";
-          const ganho=(atual-m.atual).toFixed(1);
-          const falta=(m.recomp-atual).toFixed(1);
-          return(<div key={lift} style={{background:C.card,border:`1px solid ${C.line}`,borderRadius:11,padding:"14px 13px",marginBottom:11}}>
-            <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:10}}>
-              <span style={{fontSize:16,fontWeight:600,color:cor}}>{LIFT_NAMES[lift]}</span>
-              <span style={{fontFamily:mono,fontSize:13,color:C.dim}}><b style={{color:cor,fontSize:18}}>{atual}</b> / {m.recomp}kg</span>
-            </div>
-            <div style={{position:"relative",height:26,background:C.bg2,borderRadius:13,overflow:"hidden",border:`1px solid ${C.line}`,marginBottom:8}}>
-              <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${prog}%`,background:`linear-gradient(90deg,${cor}99,${cor})`,borderRadius:13,transition:"width .4s",display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:8}}>
-                {prog>15&&<span style={{fontFamily:mono,fontSize:11,fontWeight:700,color:"#fff"}}>{prog.toFixed(0)}%</span>}
-              </div>
-              {prog<=15&&<span style={{position:"absolute",left:8,top:5,fontFamily:mono,fontSize:11,fontWeight:700,color:C.dim}}>{prog.toFixed(0)}%</span>}
-            </div>
-            <div style={{display:"flex",gap:8,marginBottom:10}}>
-              <div style={{flex:1,background:corBg,borderRadius:7,padding:"7px 9px",textAlign:"center"}}>
-                <div style={{fontFamily:mono,fontSize:15,fontWeight:800,color:cor}}>+{ganho}kg</div>
-                <div style={{fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>Ganho</div>
-              </div>
-              <div style={{flex:1,background:C.bg2,borderRadius:7,padding:"7px 9px",textAlign:"center"}}>
-                <div style={{fontFamily:mono,fontSize:15,fontWeight:800,color:parseFloat(falta)>0?C.txt:C.green}}>{parseFloat(falta)>0?falta+"kg":"✓"}</div>
-                <div style={{fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>Falta</div>
-              </div>
-              <div style={{flex:1,background:C.bg2,borderRadius:7,padding:"7px 9px",textAlign:"center"}}>
-                <div style={{fontFamily:mono,fontSize:15,fontWeight:800,color:"#b39ddb"}}>{m.cheia}kg</div>
-                <div style={{fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>~12 meses</div>
+        {/* ═══ TREINO ═══ */}
+        {mode==="treino" && (
+          <div>
+            {/* Day tabs */}
+            <div style={{marginBottom:15}}>
+              <Lbl c="Dia da Semana"/>
+              <div style={{display:"flex",gap:4,background:BG2,border:"1px solid "+LN,borderRadius:11,padding:4}}>
+                {DAY_K.map(function(k){
+                  return(
+                    <button key={k} onClick={function(){chDay(k);}} style={B({flex:1,background:day===k?G:"transparent",color:day===k?"#1a1208":DIM,fontSize:13,fontWeight:600,textTransform:"uppercase",letterSpacing:".8px",padding:"13px 2px",borderRadius:8,minHeight:46})}>{DAYS[k].lb}</button>
+                  );
+                })}
               </div>
             </div>
-            <div style={{borderTop:`1px solid ${C.line}`,paddingTop:9}}>
-              <div style={{fontSize:9,color:C.faint,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>1RM esperado ao fim de cada bloco</div>
-              <div style={{display:"flex",gap:5}}>
-                {m.blocos.map((b,i)=>{const atingido=atual>=b;return(<div key={i} style={{flex:1,background:atingido?corBg:C.bg2,border:`1px solid ${atingido?cor:C.line}`,borderRadius:6,padding:"6px 2px",textAlign:"center"}}>
-                  <div style={{fontSize:8,color:C.dim,textTransform:"uppercase"}}>B{i+1}</div>
-                  <div style={{fontFamily:mono,fontSize:12,fontWeight:700,color:atingido?cor:C.dim}}>{b}</div>
-                  {atingido&&<div style={{fontSize:9,color:cor}}>✓</div>}
-                </div>);})}
+
+            {/* Phase */}
+            {hasH && (
+              <div style={{marginBottom:15}}>
+                <Lbl c="Fase do Bloco"/>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:5}}>
+                  {PH_K.map(function(k){
+                    var on=phase===k;
+                    return(
+                      <button key={k} onClick={function(){setPhase(k);}} style={B({background:on?CARD2:CARD,border:"1px solid "+(on?G:LN),borderRadius:9,color:on?TX:DIM,fontSize:11,fontWeight:500,textTransform:"uppercase",padding:"11px 3px",minHeight:50,display:"flex",flexDirection:"column",gap:2,alignItems:"center"})}>
+                        <span>{PH_LBL[k]}</span>
+                        <span style={{fontSize:9,color:on?G:FT}}>{PH_WK[k]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Date */}
+            <div style={{background:CARD,border:"1px solid "+LN,borderRadius:9,padding:"9px 13px",marginBottom:9,display:"flex",alignItems:"center",gap:9}}>
+              <label style={{fontSize:11,letterSpacing:1,textTransform:"uppercase",color:DIM}}>📅 Data</label>
+              <input type="date" value={date} onChange={function(e){setDate(e.target.value);}} style={{flex:1,background:"transparent",color:G,fontFamily:MN,fontWeight:700,fontSize:15}}/>
+            </div>
+
+            {/* Banner */}
+            <div style={{borderRadius:9,padding:"11px 13px",marginBottom:10,border:"1px solid "+LN,borderLeft:"4px solid "+bannerBL,background:CARD2}}>
+              <div style={{fontSize:16,fontWeight:600,textTransform:"uppercase",letterSpacing:".8px"}}>{d.lb} — {d.title}</div>
+              <div style={{fontSize:12,color:DIM,fontWeight:300,marginTop:2}}>{d.sub}</div>
+            </div>
+
+            {/* Warmup */}
+            {wubs.length > 0 && (
+              <div style={{background:BG2,border:"1px solid "+LN,borderRadius:11,marginBottom:10,overflow:"hidden"}}>
+                <div onClick={function(){setWuOpen(function(p){return !p;});}} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:13,minHeight:48,cursor:"pointer",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
+                  <span style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:G,fontWeight:500}}>🔥 Aquecimento</span>
+                  <span style={{color:DIM,fontSize:12,transition:"transform .2s",transform:wuOpen?"rotate(180deg)":"none",display:"inline-block"}}>▼</span>
+                </div>
+                {wuOpen && (
+                  <div style={{padding:"0 13px 12px"}}>
+                    {wubs.map(function(blk,bi){
+                      var rv=getRmV(blk.lift);
+                      return(
+                        <div key={bi}>
+                          <div style={{fontSize:10,color:DIM,textTransform:"uppercase",letterSpacing:".8px",margin:"9px 0 5px",fontWeight:500}}>
+                            {blk.title}{blk.note && <span style={{color:FT,fontSize:9,marginLeft:5,textTransform:"none",letterSpacing:0}}>({blk.note})</span>}
+                          </div>
+                          {blk.steps.map(function(s,si){
+                            var kg=s.kg!==undefined?s.kg:(rv>0?r25(rv*s.pct/100):null);
+                            return(
+                              <div key={si} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 9px",background:CARD,borderRadius:7,marginBottom:4,border:"1px solid "+LN}}>
+                                <span style={{fontFamily:MN,fontSize:10,color:FT,minWidth:18}}>{si+1}ª</span>
+                                <span style={{fontFamily:MN,fontWeight:800,fontSize:18,color:G,minWidth:55}}>{kg!==null?kg+"kg":"—"}</span>
+                                <span style={{fontFamily:MN,fontWeight:700,fontSize:12,color:TX}}>× {s.reps}</span>
+                                <span style={{fontSize:10,color:FT,marginLeft:"auto"}}>{s.lb||s.pct+"%"}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                    <div style={{fontSize:10,color:FT,marginTop:5,lineHeight:1.4}}>Arredonde 1–2kg conforme as anilhas.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Exercícios */}
+            {d.recovery ? d.ex.map(function(e,i){
+              return(
+                <div key={i} style={{background:CARD,border:"1px solid "+LN,borderRadius:9,padding:"12px 13px",marginBottom:7}}>
+                  <div style={{fontSize:14,fontWeight:500}}>{e.rt}</div>
+                  <div style={{fontSize:11,color:DIM,fontWeight:300,marginTop:2}}>{e.rs}</div>
+                </div>
+              );
+            }) : d.ex.map(function(e){
+              var nm=subs[e.id]||e.name;
+              var isM=!!e.main;
+              var md=isM?comp(e.main.lift,e.main.dt):null;
+              var so=!!openS[e.id];
+              var cs=subs[e.id]||e.name;
+              var ns=numSets(e);
+              var tr=tReps(e);
+              var allSubs=isM?e.subs:(e.subs||[]);
+              return(
+                <div key={e.id} style={{background:isM?"linear-gradient(145deg,"+CARD2+","+CARD+")":CARD,border:"1px solid "+(isM?GD:LN),borderRadius:11,padding:"12px 13px",marginBottom:9}}>
+                  <div style={{fontSize:15,fontWeight:600,lineHeight:1.2,marginBottom:3}}>{nm}</div>
+                  <span style={{fontSize:9,fontWeight:600,letterSpacing:".8px",textTransform:"uppercase",padding:"2px 6px",borderRadius:4,display:"inline-block",background:isM?"rgba(232,165,52,.15)":"rgba(140,138,133,.15)",color:isM?G:DIM}}>{isM?"Principal":"Acessório"}</span>
+
+                  {isM && md ? (
+                    <div>
+                      <div style={{display:"flex",gap:12,marginTop:8,flexWrap:"wrap",alignItems:"baseline"}}>
+                        {md.kg!==null && <span><span style={{fontFamily:MN,fontWeight:800,fontSize:26,color:G,lineHeight:1}}>{md.kg}</span><span style={{fontSize:12,color:DIM}}> kg</span></span>}
+                        <span style={{fontFamily:MN,fontWeight:700,fontSize:17,color:TX}}>{md.sets}×{md.reps}</span>
+                        <span style={{fontSize:12,color:DIM}}>RPE {md.rpe}</span>
+                      </div>
+                      <div style={{fontFamily:MN,fontSize:10,color:FT,marginTop:2}}>{md.kg!==null?md.pct+"% do 1RM · exato "+md.exact+"kg":"Preencha o 1RM acima"}</div>
+                      {md.fixed && <div style={{fontSize:11,color:G,marginTop:3}}>Volume — carga fixa, dupla progressão</div>}
+                    </div>
+                  ) : !isM && (
+                    <div style={{display:"flex",gap:12,marginTop:8,alignItems:"baseline"}}>
+                      <span style={{fontFamily:MN,fontWeight:700,fontSize:17,color:TX}}>{e.sets}×{e.reps}</span>
+                      <span style={{fontSize:12,color:DIM}}>RPE {e.rpe}</span>
+                    </div>
+                  )}
+
+                  {allSubs && allSubs.length > 0 && (
+                    <div>
+                      <button onClick={function(){togSub(e.id);}} style={B({marginTop:9,fontSize:11,color:BL,border:"1px dashed "+LN,padding:"8px 10px",borderRadius:7,display:"inline-flex",alignItems:"center",gap:4,background:"transparent",minHeight:40})}>🔄 Trocar (sem máquina?)</button>
+                      {so && (
+                        <div style={{marginTop:7,display:"flex",flexWrap:"wrap",gap:5}}>
+                          {[e.name].concat(allSubs).map(function(sn){
+                            return(
+                              <button key={sn} onClick={function(){chSub(e.id,sn);}} style={B({background:cs===sn?"rgba(77,131,196,.12)":BG2,border:"1px solid "+(cs===sn?BL:LN),color:cs===sn?BL:DIM,fontSize:11,padding:"8px 10px",borderRadius:7,minHeight:38})}>{sn}</button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Log por série */}
+                  <div style={{marginTop:11,paddingTop:11,borderTop:"1px solid "+LN}}>
+                    <div style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr",gap:6,marginBottom:5}}>
+                      {["Série","Carga (kg)","Reps feitas"].map(function(h){return(<span key={h} style={{fontSize:9,letterSpacing:.5,textTransform:"uppercase",color:FT,textAlign:"center"}}>{h}</span>);  })}
+                    </div>
+                    {Array.from({length:ns},function(_,si){
+                      var s=getSet(e.id,si);
+                      return(
+                        <div key={si} style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr",gap:6,marginBottom:5,alignItems:"center"}}>
+                          <div style={{fontFamily:MN,fontSize:12,fontWeight:700,color:DIM,textAlign:"center",background:BG2,border:"1px solid "+LN,borderRadius:6,height:40,display:"flex",alignItems:"center",justifyContent:"center"}}>{si+1}</div>
+                          <div style={{background:BG2,border:"1px solid "+LN,borderRadius:7,height:40,display:"flex",alignItems:"center",padding:"0 8px"}}>
+                            <input type="number" inputMode="decimal" placeholder="kg" value={s.kg} onChange={function(ev){setSetVal(e.id,si,"kg",ev.target.value);}} style={{width:"100%",background:"transparent",color:G,fontFamily:MN,fontWeight:700,fontSize:15,textAlign:"center"}}/>
+                          </div>
+                          <div style={{background:BG2,border:"1px solid "+LN,borderRadius:7,height:40,display:"flex",alignItems:"center",padding:"0 8px"}}>
+                            <input type="number" inputMode="decimal" placeholder={""+tr} value={s.reps} onChange={function(ev){setSetVal(e.id,si,"reps",ev.target.value);}} style={{width:"100%",background:"transparent",color:TX,fontFamily:MN,fontWeight:700,fontSize:15,textAlign:"center"}}/>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginTop:6,paddingTop:6,borderTop:"1px dashed "+LN}}>
+                      <span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:FT,whiteSpace:"nowrap"}}>RPE geral</span>
+                      <div style={{flex:1,background:BG2,border:"1px solid "+LN,borderRadius:7,height:36,display:"flex",alignItems:"center",padding:"0 8px"}}>
+                        <input type="number" inputMode="decimal" placeholder="—" value={getRpeV(e.id)} onChange={function(ev){setRpeV(e.id,ev.target.value);}} style={{width:"100%",background:"transparent",color:G,fontFamily:MN,fontWeight:700,fontSize:14,textAlign:"center"}}/>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {!d.recovery && <button onClick={doSave} style={B({width:"100%",marginTop:13,background:saveBg,color:saveS!=="idle"?"#fff":"#1a1208",borderRadius:11,fontSize:16,fontWeight:600,textTransform:"uppercase",letterSpacing:2,padding:"15px",minHeight:52})}>{saveLbl}</button>}
+
+            {/* Histórico */}
+            <div style={{marginTop:26}}>
+              <Lbl c="Histórico de Treinos"/>
+              {hist.length===0 ? (
+                <div style={{textAlign:"center",color:FT,fontSize:13,padding:"18px 0"}}>Nenhum treino salvo ainda.</div>
+              ) : hist.slice().sort(function(a,b){return b.ts-a.ts;}).map(function(s){
+                var dt=s.date?s.date.split("-").reverse().join("/").slice(0,5):"—";
+                var dn=DAYS[s.day]?DAYS[s.day].lb:s.day;
+                var entries=(s.entries||[]).filter(function(e){return(e.sets&&e.sets.some(function(x){return x.kg||x.reps;}))||e.rpe;});
+                return(
+                  <div key={s.ts} style={{background:CARD,border:"1px solid "+LN,borderRadius:9,padding:"10px 13px",marginBottom:7}}>
+                    <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:7}}>
+                      <span style={{fontFamily:MN,fontSize:13,color:G,fontWeight:700}}>{dt}</span>
+                      <span style={{fontSize:8,fontWeight:600,letterSpacing:".8px",textTransform:"uppercase",padding:"2px 6px",borderRadius:3,background:BG2,color:DIM}}>{dn}</span>
+                      <button onClick={function(){delHist(s.ts);}} style={B({marginLeft:"auto",background:"transparent",color:FT,fontSize:22,padding:"0 5px",minHeight:40,minWidth:40,display:"flex",alignItems:"center",justifyContent:"center"})}>×</button>
+                    </div>
+                    {entries.map(function(en,i){
+                      return(
+                        <div key={i} style={{marginBottom:7}}>
+                          <div style={{fontSize:12,fontWeight:600,color:TX,marginBottom:4}}>{en.name}</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                            {(en.sets||[]).map(function(st,si){
+                              var ok=!!(st.kg||st.reps);
+                              return(<span key={si} style={{fontFamily:MN,fontSize:11,background:BG2,border:"1px solid "+(ok?GD:LN),borderRadius:5,padding:"3px 8px",color:ok?G:DIM}}>{si+1} {st.kg?st.kg+"kg":"—"}×{st.reps||"—"}</span>);
+                            })}
+                          </div>
+                          {en.rpe && <div style={{fontSize:10,color:FT,marginTop:3}}>RPE {en.rpe}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ TESTE 1RM ═══ */}
+        {mode==="rm" && (
+          <div>
+            <div style={{background:"rgba(124,92,191,.1)",border:"1px solid "+PU,borderRadius:9,padding:"11px 13px",marginBottom:14}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#d1c4e9",marginBottom:3}}>⚠️ Protocolo de Teste 1RM</div>
+              <div style={{fontSize:11,color:DIM,lineHeight:1.5}}>Descanse 2–3 dias antes. Teste <b style={{color:TX}}>1 lift por dia</b> com pelo menos 1 dia de folga entre cada.</div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <Lbl c="Lift a testar"/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                {["squat","bench","dead"].map(function(l){
+                  return(
+                    <button key={l} onClick={function(){setRmLift(l);setAttempts([{kg:"",ok:null},{kg:"",ok:null},{kg:"",ok:null}]);setRmUpdated(null);}} style={B({background:rmLift===l?PU:CARD,border:"1px solid "+(rmLift===l?PU:LN),borderRadius:9,color:rmLift===l?"#fff":DIM,fontSize:13,fontWeight:600,padding:"12px 4px",minHeight:46,textTransform:"uppercase"})}>
+                      {l==="squat"?"🏋️ Squat":l==="bench"?"🤜 Bench":"⬆️ Dead"}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          </div>);
-        })}
-        {(()=>{
-          const totalAtual=(getRmVal("squat")||102.5)+(getRmVal("bench")||85)+(getRmVal("dead")||195);
-          const totalMeta=117.5+91.5+207.5;
-          const totalInicial=102.5+85+195;
-          const prog=Math.max(0,Math.min(100,((totalAtual-totalInicial)/(totalMeta-totalInicial))*100));
-          return(<div style={{background:`linear-gradient(145deg,${C.card2},${C.card})`,border:`1px solid ${C.goldD}`,borderRadius:11,padding:"14px 13px",marginBottom:11}}>
-            <div style={{fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:C.gold,fontWeight:600,marginBottom:10,textAlign:"center"}}>Total dos 3 Lifts</div>
-            <div style={{textAlign:"center",marginBottom:10}}>
-              <span style={{fontFamily:mono,fontSize:32,fontWeight:800,color:C.gold}}>{totalAtual.toFixed(1)}</span>
-              <span style={{fontFamily:mono,fontSize:16,color:C.dim}}> / {totalMeta}kg</span>
+            <div style={{background:CARD,border:"1px solid "+LN,borderRadius:9,padding:"9px 13px",marginBottom:12,display:"flex",alignItems:"center",gap:9}}>
+              <label style={{fontSize:11,letterSpacing:1,textTransform:"uppercase",color:DIM}}>📅 Data</label>
+              <input type="date" value={rmDate} onChange={function(e){setRmDate(e.target.value);}} style={{flex:1,background:"transparent",color:G,fontFamily:MN,fontWeight:700,fontSize:15}}/>
             </div>
-            <div style={{position:"relative",height:24,background:C.bg2,borderRadius:12,overflow:"hidden",border:`1px solid ${C.line}`}}>
-              <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${prog}%`,background:`linear-gradient(90deg,${C.goldD},${C.gold})`,borderRadius:12,transition:"width .4s",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontFamily:mono,fontSize:11,fontWeight:700,color:"#1a1208"}}>{prog.toFixed(0)}%</span>
+            <div style={{background:BG2,border:"1px solid "+LN,borderRadius:11,marginBottom:14,overflow:"hidden"}}>
+              <div onClick={function(){setRmWuOpen(function(p){return !p;});}} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:13,minHeight:48,cursor:"pointer",touchAction:"manipulation",WebkitTapHighlightColor:"transparent"}}>
+                <span style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:G,fontWeight:500}}>🔥 Aquecimento para Teste</span>
+                <span style={{color:DIM,fontSize:12,transition:"transform .2s",transform:rmWuOpen?"rotate(180deg)":"none",display:"inline-block"}}>▼</span>
               </div>
+              {rmWuOpen && (
+                <div style={{padding:"0 13px 12px"}}>
+                  {rmWuS.map(function(s,i){
+                    var rv=getRmV(rmLift);
+                    var kg=s.kg!==undefined?s.kg:(rv>0?r25(rv*s.pct/100):null);
+                    return(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 9px",background:CARD,borderRadius:7,marginBottom:4,border:"1px solid "+LN}}>
+                        <span style={{fontFamily:MN,fontSize:10,color:FT,minWidth:18}}>{i+1}ª</span>
+                        <span style={{fontFamily:MN,fontWeight:800,fontSize:18,color:G,minWidth:55}}>{kg!==null?kg+"kg":"—"}</span>
+                        <span style={{fontFamily:MN,fontWeight:700,fontSize:12,color:TX}}>× {s.reps}</span>
+                        <span style={{fontSize:10,color:FT,marginLeft:"auto"}}>{s.lb||s.pct+"%"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div style={{textAlign:"center",marginTop:8,fontSize:11,color:C.dim}}>
-              Ganho total: <b style={{color:C.gold}}>+{(totalAtual-totalInicial).toFixed(1)}kg</b> · Falta <b style={{color:C.txt}}>{(totalMeta-totalAtual).toFixed(1)}kg</b>
+            <div style={{background:CARD,border:"1px solid "+LN,borderRadius:11,padding:13,marginBottom:14}}>
+              <div style={{fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:"#d1c4e9",fontWeight:600,marginBottom:12}}>🏆 Tentativas — {LIFT_NAMES[rmLift]}</div>
+              {attempts.map(function(a,i){
+                var sg=sugg[i];
+                var labels=["1ª Abertura","2ª Tentativa","3ª (PR)"];
+                var bCols=[BL,G,PU];
+                return(
+                  <div key={i} style={{display:"grid",gridTemplateColumns:"55px 1fr 80px",gap:8,marginBottom:8,alignItems:"center"}}>
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <span style={{fontFamily:MN,fontSize:10,fontWeight:700,color:bCols[i]}}>{labels[i]}</span>
+                      {sg && <span style={{fontFamily:MN,fontSize:9,color:FT}}>~{sg}kg</span>}
+                    </div>
+                    <div style={{background:BG2,border:"1px solid "+(a.ok===true?GR:a.ok===false?R:LN),borderRadius:8,height:44,display:"flex",alignItems:"center",padding:"0 10px"}}>
+                      <input type="number" inputMode="decimal" placeholder={sg?String(sg):"kg"} value={a.kg} onChange={function(ev){setAtt(i,"kg",ev.target.value);}} style={{width:"100%",background:"transparent",color:a.ok===true?GR:a.ok===false?R:TX,fontFamily:MN,fontWeight:800,fontSize:18,textAlign:"center"}}/>
+                    </div>
+                    <div style={{display:"flex",gap:5,justifyContent:"center"}}>
+                      <button onClick={function(){togOk(i,true);}} style={B({background:a.ok===true?"rgba(90,165,95,.25)":BG2,border:"1px solid "+(a.ok===true?GR:LN),borderRadius:7,color:a.ok===true?GR:DIM,fontSize:16,minHeight:44,minWidth:36,display:"flex",alignItems:"center",justifyContent:"center"})}>✓</button>
+                      <button onClick={function(){togOk(i,false);}} style={B({background:a.ok===false?"rgba(214,73,59,.25)":BG2,border:"1px solid "+(a.ok===false?R:LN),borderRadius:7,color:a.ok===false?R:DIM,fontSize:16,minHeight:44,minWidth:36,display:"flex",alignItems:"center",justifyContent:"center"})}>✗</button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>);
-        })()}
-        <div style={{background:"rgba(214,73,59,.08)",border:`1px dashed ${C.red}`,borderRadius:9,padding:"11px 13px",fontSize:11,color:C.dim,lineHeight:1.5}}>
-          <b style={{color:C.gold}}>Lembrete honesto:</b> na recomposição os ganhos são mais lentos. Meta de recomp (Dez) é o sucesso esperado mantendo 93kg. Se travar 2 blocos seguidos, ganhar 2-3kg destrava.
-        </div>
-      </>)}
+            <button onClick={doRmSave} style={B({width:"100%",background:rmSaveBg,color:"#fff",borderRadius:11,fontSize:15,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,padding:"15px",minHeight:52})}>{rmSaveLbl}</button>
+            <div style={{marginTop:26}}>
+              <Lbl c="Histórico de Testes 1RM"/>
+              {rmHist.length===0 ? (
+                <div style={{textAlign:"center",color:FT,fontSize:13,padding:"18px 0"}}>Nenhum teste salvo ainda.</div>
+              ) : rmHist.slice().sort(function(a,b){return b.ts-a.ts;}).map(function(s){
+                var dt=s.date?s.date.split("-").reverse().join("/").slice(0,5):"—";
+                return(
+                  <div key={s.ts} style={{background:CARD,border:"1px solid "+LN,borderRadius:9,padding:"10px 13px",marginBottom:7}}>
+                    <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:7}}>
+                      <span style={{fontFamily:MN,fontSize:13,color:G,fontWeight:700}}>{dt}</span>
+                      <span style={{fontSize:9,fontWeight:600,padding:"2px 7px",borderRadius:3,background:"rgba(124,92,191,.2)",color:"#d1c4e9"}}>{LIFT_NAMES[s.lift]}</span>
+                      {s.bestKg && <span style={{fontFamily:MN,fontSize:13,fontWeight:800,color:GR,marginLeft:"auto"}}>✓ {s.bestKg}kg</span>}
+                      <button onClick={function(){delRmHist(s.ts);}} style={B({background:"transparent",color:FT,fontSize:22,padding:"0 5px",minHeight:40,minWidth:32,display:"flex",alignItems:"center",justifyContent:"center"})}>×</button>
+                    </div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      {(s.attempts||[]).map(function(a,i){
+                        if(!a.kg) return null;
+                        var ok=a.ok===true,fail=a.ok===false;
+                        return(<span key={i} style={{fontFamily:MN,fontSize:12,background:BG2,border:"1px solid "+(ok?GR:fail?R:LN),borderRadius:5,padding:"4px 9px",color:ok?GR:fail?R:DIM}}>{i+1}ª {a.kg}kg {ok?"✓":fail?"✗":""}</span>);
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ METAS ═══ */}
+        {mode==="metas" && (
+          <div>
+            <div style={{background:"rgba(90,165,95,.1)",border:"1px solid "+GR,borderRadius:9,padding:"11px 13px",marginBottom:14}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#a5d6a7",marginBottom:3}}>🎯 Meta de Recomposição — Dez 2026</div>
+              <div style={{fontSize:11,color:DIM,lineHeight:1.5}}>Ganhar força + perder gordura mantendo 93kg. A barra mostra o progresso rumo à meta de recomp (Dez). Meta cheia = ~12 meses.</div>
+            </div>
+            {["squat","bench","dead"].map(function(lift){
+              var m=METAS[lift];
+              var atual=getRmV(lift)||m.atual;
+              var prog=Math.max(0,Math.min(100,((atual-m.atual)/(m.recomp-m.atual))*100));
+              var cor=lift==="squat"?GR:lift==="bench"?R:G;
+              var corBg=lift==="squat"?"rgba(90,165,95,.15)":lift==="bench"?"rgba(214,73,59,.15)":"rgba(232,165,52,.15)";
+              var ganho=(atual-m.atual).toFixed(1);
+              var falta=(m.recomp-atual).toFixed(1);
+              return(
+                <div key={lift} style={{background:CARD,border:"1px solid "+LN,borderRadius:11,padding:"14px 13px",marginBottom:11}}>
+                  <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:10}}>
+                    <span style={{fontSize:16,fontWeight:600,color:cor}}>{LIFT_NAMES[lift]}</span>
+                    <span style={{fontFamily:MN,fontSize:13,color:DIM}}><b style={{color:cor,fontSize:18}}>{atual}</b> / {m.recomp}kg</span>
+                  </div>
+                  <div style={{position:"relative",height:26,background:BG2,borderRadius:13,overflow:"hidden",border:"1px solid "+LN,marginBottom:8}}>
+                    <div style={{position:"absolute",left:0,top:0,height:"100%",width:prog+"%",background:"linear-gradient(90deg,"+cor+"99,"+cor+")",borderRadius:13,transition:"width .4s",display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:8}}>
+                      {prog>15 && <span style={{fontFamily:MN,fontSize:11,fontWeight:700,color:"#fff"}}>{prog.toFixed(0)}%</span>}
+                    </div>
+                    {prog<=15 && <span style={{position:"absolute",left:8,top:5,fontFamily:MN,fontSize:11,fontWeight:700,color:DIM}}>{prog.toFixed(0)}%</span>}
+                  </div>
+                  <div style={{display:"flex",gap:8,marginBottom:10}}>
+                    <div style={{flex:1,background:corBg,borderRadius:7,padding:"7px 9px",textAlign:"center"}}>
+                      <div style={{fontFamily:MN,fontSize:15,fontWeight:800,color:cor}}>+{ganho}kg</div>
+                      <div style={{fontSize:9,color:DIM,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>Ganho</div>
+                    </div>
+                    <div style={{flex:1,background:BG2,borderRadius:7,padding:"7px 9px",textAlign:"center"}}>
+                      <div style={{fontFamily:MN,fontSize:15,fontWeight:800,color:parseFloat(falta)>0?TX:GR}}>{parseFloat(falta)>0?falta+"kg":"✓"}</div>
+                      <div style={{fontSize:9,color:DIM,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>Falta</div>
+                    </div>
+                    <div style={{flex:1,background:BG2,borderRadius:7,padding:"7px 9px",textAlign:"center"}}>
+                      <div style={{fontFamily:MN,fontSize:15,fontWeight:800,color:"#b39ddb"}}>{m.cheia}kg</div>
+                      <div style={{fontSize:9,color:DIM,textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>~12 meses</div>
+                    </div>
+                  </div>
+                  <div style={{borderTop:"1px solid "+LN,paddingTop:9}}>
+                    <div style={{fontSize:9,color:FT,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>1RM esperado ao fim de cada bloco</div>
+                    <div style={{display:"flex",gap:5}}>
+                      {m.blocos.map(function(b,i){
+                        var at=atual>=b;
+                        return(
+                          <div key={i} style={{flex:1,background:at?corBg:BG2,border:"1px solid "+(at?cor:LN),borderRadius:6,padding:"6px 2px",textAlign:"center"}}>
+                            <div style={{fontSize:8,color:DIM,textTransform:"uppercase"}}>B{i+1}</div>
+                            <div style={{fontFamily:MN,fontSize:12,fontWeight:700,color:at?cor:DIM}}>{b}</div>
+                            {at && <div style={{fontSize:9,color:cor}}>✓</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{background:"linear-gradient(145deg,"+CARD2+","+CARD+")",border:"1px solid "+GD,borderRadius:11,padding:"14px 13px",marginBottom:11}}>
+              <div style={{fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:G,fontWeight:600,marginBottom:10,textAlign:"center"}}>Total dos 3 Lifts</div>
+              {(function(){
+                var ta=(getRmV("squat")||102.5)+(getRmV("bench")||85)+(getRmV("dead")||195);
+                var tm=117.5+91.5+207.5;
+                var ti=102.5+85+195;
+                var pg=Math.max(0,Math.min(100,((ta-ti)/(tm-ti))*100));
+                return(
+                  <div>
+                    <div style={{textAlign:"center",marginBottom:10}}>
+                      <span style={{fontFamily:MN,fontSize:32,fontWeight:800,color:G}}>{ta.toFixed(1)}</span>
+                      <span style={{fontFamily:MN,fontSize:16,color:DIM}}> / {tm}kg</span>
+                    </div>
+                    <div style={{position:"relative",height:24,background:BG2,borderRadius:12,overflow:"hidden",border:"1px solid "+LN}}>
+                      <div style={{position:"absolute",left:0,top:0,height:"100%",width:pg+"%",background:"linear-gradient(90deg,"+GD+","+G+")",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        <span style={{fontFamily:MN,fontSize:11,fontWeight:700,color:"#1a1208"}}>{pg.toFixed(0)}%</span>
+                      </div>
+                    </div>
+                    <div style={{textAlign:"center",marginTop:8,fontSize:11,color:DIM}}>
+                      Ganho total: <b style={{color:G}}>+{(ta-ti).toFixed(1)}kg</b> · Falta <b style={{color:TX}}>{(tm-ta).toFixed(1)}kg</b>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
   );
 }
 
+// Esconde loading, mostra app, monta React
+document.getElementById('loading').style.display = 'none';
+document.getElementById('root').style.display = 'block';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App/>);
 </script>
